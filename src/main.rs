@@ -6,7 +6,7 @@ extern crate tokio;
 
 use futures::future::{done, ok};
 use futures::{Future, Stream};
-use tokio::io::AsyncRead;
+use tokio::io::{self as tio, AsyncRead};
 use tokio::net::{TcpListener, TcpStream};
 
 use std::error;
@@ -23,18 +23,15 @@ fn client_fut(socket: TcpStream) -> impl Future<Item = (), Error = ()> + 'static
             error!("Fetch peer address failed: {:?}", err);
             Err(())
         }
-    }).and_then(move |(socket, peer)| ok((socket.split(), peer)))
-        .and_then(move |((ref mut r, ref mut w), peer)| {
-            let loop_fut = done(io::copy(r, w))
-                .and_then(move |num| {
-                    info!("Wrote {:?} bytes", num);
-                    ok(())
+    }).and_then(move |(socket, peer)| {
+            let buf = vec![0; 5];
+            let svc_fut = tio::read_exact(socket, buf)
+                .and_then(|(socket, buf)| {
+                    tio::write_all(socket, buf)
                 })
-                .map_err(|err| {
-                    error!("Write failed: {:?}", err);
-                });
+                .then(|_| Ok(()));
 
-            tokio::spawn(loop_fut);
+            tokio::spawn(svc_fut);
             ok(())
         })
 }
