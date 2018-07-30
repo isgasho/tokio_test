@@ -10,3 +10,7 @@ build:
 
 run: build
   {{env}} ./target/debug/tokio_test
+
+
+fmt:
+  cargo fmt
